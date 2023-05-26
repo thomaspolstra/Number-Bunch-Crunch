@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from typing import List, Tuple
-from ..utils import tensor_window_slide
+from ..utils.tensor_funcs import tensor_window_slide
 
 
 class VolatilityLSTM(nn.Module):

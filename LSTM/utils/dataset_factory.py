@@ -1,6 +1,6 @@
 from torch.utils.data import Dataset, DataLoader
 import torch
-from download_or_read_data import download_or_read_data
+from gather_data import download_or_read_data
 from typing import List, Tuple
 
 
