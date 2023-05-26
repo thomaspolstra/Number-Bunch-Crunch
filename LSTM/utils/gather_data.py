@@ -21,6 +21,7 @@ def download_or_read_data(tickers: List[str], start_date: str, end_date: str) ->
         return pd.read_pickle(path_name)
 
     data = yf.download(tickers, start=start_date, end=end_date)
+    data = data.dropna(axis=0, how='all').dropna(axis=1)
     os.makedirs('../data/', exist_ok=True)
 
     data.to_pickle(path_name)
