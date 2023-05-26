@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from typing import List
+from typing import List, Tuple
 
 
 class VolatilityLSTM(nn.Module):
@@ -56,3 +56,55 @@ class VolatilityLSTM(nn.Module):
 
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, X: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Computes forward pass
+        :param X: tensor of shape (batch size, sequence length, window_size)
+        :return: tensor of shape (batch_size, sequence length)
+        """
+        y, hiddens = self.lstm(X)
+        for layer in self.dense_layers:
+            y = self.relu(self.dropout(layer(y)))
+
+        y = self.fc(y)
+
+        return y.squeeze(), hiddens
+
+    def predict(self, X: torch.Tensor, n_days: int, keep_init: bool) -> torch.Tensor:
+        """
+        predicts the volatility from a sequence of data
+        :param X: tensor of shape (batch size, sequence_length, window_size)
+        :param n_days: number of days to predict in the future
+        :param keep_init: if True, appends its prediction for the given days to the output
+        :return: tensor of shape (batch size, n_days) if keep_init == False, otherwise (batch size, sequence length + n_days)
+        """
+        n_preds = n_days + X.size(1) if keep_init else n_days
+
+        init_preds, hiddens = self.forward(X)
+        final_pred = init_preds[:, -1]
+
+        new_preds = torch.zeros(X.size(0), n_preds)
+        new_preds[: 0] = final_pred
+
+        next_input = self.tensor_window_slide(X[:, -1, :], final_pred.unsqueeze(1))
+
+        for i in range(1, n_days):
+            next_pred, hiddens = self.forward(X)
+            new_preds[: i] = next_pred
+            next_input = self.tensor_window_slide(next_input, next_pred)
+
+        if keep_init:
+            return torch.cat((init_preds, new_preds), dim=1)
+        else:
+            return new_preds
+
+
+    def tensor_window_slide(self, old_tensor: torch.Tensor, new_tensor: torch.Tensor) -> torch.Tensor:
+        """
+        slides the sliding window one unit over for a batched tensor
+        :param old_tensor: the old sliding window of shape (batch_size, 1, window_size)
+        :param new_tensor: the new tensor to add of shape (batch_size, 1, 1)
+        :return: tensor of shape (batch_size, 1, window_size)
+        """
+        return torch.cat((old_tensor[:, :, 1:], new_tensor), dim=2)
