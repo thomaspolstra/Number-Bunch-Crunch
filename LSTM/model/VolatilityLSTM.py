@@ -98,7 +98,7 @@ class VolatilityLSTM(nn.Module):
         next_input = tensor_window_slide(X[:, -1, :], final_pred.unsqueeze(1))  # slides the window one day to the right
 
         for i in range(1, n_days):
-            next_pred, hiddens = self.forward(X)
+            next_pred, hiddens = self.forward(next_input)
             new_preds[: i] = next_pred
             next_input = tensor_window_slide(next_input, next_pred)
 
