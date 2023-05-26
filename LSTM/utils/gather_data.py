@@ -26,3 +26,9 @@ def download_or_read_data(tickers: List[str], start_date: str, end_date: str) ->
 
     data.to_pickle(path_name)
     return data
+
+
+def read_data(n_tickers: int, start_date: str, end_date: str) -> pd.DataFrame:
+    path_name = f'../data/tickers_data_{n_tickers}_{start_date.replace("-", "_")}_{end_date.replace("-", "_")}.pkl'
+
+    return pd.read_pickle(path_name)

@@ -1,11 +1,14 @@
-TICKERS = {'tech': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA'],
-           'biotech': ['JNJ', 'LLY', 'NVO', 'MRK', 'RHHBY'],
-           'industrial': ['DOW', 'GE', 'F', 'UNP', 'SO'],
-           'healthcare': ['PFE', 'ABBV', 'CVS', 'AMGN', 'UNH']}
-
-start_date1 = '2013-01-01'
-end_date1 = '2022-12-31'
+import sys
+from experiment import Experiment
 
 if __name__ == '__main__':
-    # TODO make the thing run
-    print("I don't do anything yet :(")
+    exp_name = 'default'
+
+    if len(sys.argv) > 1:
+        exp_name = sys.argv[1]
+
+    print('Running Experiment: ', exp_name)
+    exp = Experiment(exp_name)
+    exp.run()
+    print('Beginning Testing')
+    exp.test()

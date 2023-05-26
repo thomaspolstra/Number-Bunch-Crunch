@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from typing import List, Tuple
-from ..utils.tensor_funcs import tensor_window_slide
+from LSTM.model.tensor_funcs import tensor_window_slide
 
 
 class VolatilityLSTM(nn.Module):
@@ -92,14 +92,15 @@ class VolatilityLSTM(nn.Module):
         init_preds, hiddens = self.forward(X)
         final_pred = init_preds[:, -1]
 
-        new_preds = torch.zeros(X.size(0), n_preds)
-        new_preds[: 0] = final_pred
+        new_preds = torch.zeros(X.size(0), n_days)
+        new_preds[:, 0] = final_pred
 
-        next_input = tensor_window_slide(X[:, -1, :], final_pred.unsqueeze(1))  # slides the window one day to the right
+        # slides the window one day to the right
+        next_input = tensor_window_slide(X[:, -1, :].view(X.size(0), 1, X.size(-1)), final_pred)
 
         for i in range(1, n_days):
             next_pred, hiddens = self.forward(next_input)
-            new_preds[: i] = next_pred
+            new_preds[:, i] = next_pred
             next_input = tensor_window_slide(next_input, next_pred)
 
         if keep_init:

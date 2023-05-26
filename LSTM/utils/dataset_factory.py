@@ -1,25 +1,24 @@
 from torch.utils.data import Dataset, DataLoader
 import torch
-from gather_data import download_or_read_data
-from typing import List, Tuple
+from pandas import DataFrame
+from typing import Tuple, Any
 
 
 class TickerDataset(Dataset):
-    def __init__(self, tickers: List[str], start_date: str, end_date: str, window_size: int):
+    def __init__(self, ticker_df: DataFrame, window_size: int):
         super().__init__()
-        self.tickers = tickers
-        self.ticker_data = download_or_read_data(tickers, start_date, end_date).dropna()
+        self.tickers = ticker_df['Adj Close'].columns.values
+        self.ticker_data = ticker_df
         self.window_size = window_size
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """returns input and target tensors for one ticker symbol"""
         daily_close = self.ticker_data['Adj Close']
-        pct_changes = daily_close.pct_change() * 100
 
-        pct_changes_tensor = torch.tensor(pct_changes[self.tickers[index]], dtype=torch.float)
-        input = pct_changes_tensor.unfold(0, self.window_size, 1)  # turns 1d tensor into 2d of shape
-                                                                   # (n_days - window_size, window_size)
-        target = pct_changes_tensor[self.window_size:]  # 1d tensor of shape (n_days - window_size)
+        log_returns = torch.tensor(daily_close[self.tickers[index]], dtype=torch.float).log().diff()
+        input = log_returns.unfold(0, self.window_size, 1)  # turns 1d tensor into 2d of shape
+                                                            # (n_days - window_size, window_size)
+        target = log_returns[self.window_size:]  # 1d tensor of shape (n_days - window_size)
 
         return input, target
 
@@ -27,11 +26,45 @@ class TickerDataset(Dataset):
         return len(self.tickers)
 
 
-def create_dataloader(tickers: List[str],
-                      start_date: str,
-                      end_date: str,
-                      window_size: int,
-                      batch_size: int,
-                      shuffle: bool) -> DataLoader:
-    dataset = TickerDataset(tickers, start_date, end_date, window_size)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+def create_dataloaders(ticker_df: DataFrame,
+                       window_size: int,
+                       batch_size: int,
+                       shuffle: bool,
+                       n_workers: int,
+                       val_ratio: float,
+                       test_ratio: float) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    """
+    :param ticker_df: DataFrame for tickers
+    :param window_size: number of days in rolling window
+    :param batch_size: batch size
+    :param shuffle: if the tickers will be shuffled (not the dates)
+    :param n_workers: number of workers for the data loader
+    :param val_ratio: the ratio of days for the validation set
+    :param test_ratio: the ratio of days for the test set
+    :return: three data loaders (train, val, test)
+    """
+    dataframes = train_val_test_split(ticker_df, val_ratio, test_ratio)
+    shuffles = (shuffle, False, False)
+    loaders = []
+
+    for df, should_shuffle in zip(dataframes, shuffles):
+        loaders.append(DataLoader(TickerDataset(df, window_size),
+                                  batch_size=batch_size,
+                                  shuffle=should_shuffle,
+                                  num_workers=n_workers))
+
+    return tuple(loaders)
+
+
+def train_val_test_split(data: DataFrame,
+                         val_ratio: float,
+                         test_ratio: float) -> Tuple[DataFrame, DataFrame, DataFrame]:
+    n_days = len(data)
+    n_days_val = int(n_days * val_ratio)
+    n_days_test = int(n_days * test_ratio)
+
+    train_data = data[:-n_days_val - n_days_test].copy()
+    val_data = data[-n_days_val - n_days_test:-n_days_test].copy()
+    test_data = data[-n_days_test:].copy()
+
+    return train_data, val_data, test_data
