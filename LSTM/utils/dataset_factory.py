@@ -17,8 +17,9 @@ class TickerDataset(Dataset):
         pct_changes = daily_close.pct_change() * 100
 
         pct_changes_tensor = torch.tensor(pct_changes[self.tickers[index]], dtype=torch.float)
-        input = pct_changes_tensor.unfold(0, self.window_size, 1)  #turns 1d tensor into 2d of shape (n_days - window_size, window_size)
-        target = pct_changes_tensor[self.window_size:] #1d tensor of shape (n_days - window_size)
+        input = pct_changes_tensor.unfold(0, self.window_size, 1)  # turns 1d tensor into 2d of shape
+                                                                   # (n_days - window_size, window_size)
+        target = pct_changes_tensor[self.window_size:]  # 1d tensor of shape (n_days - window_size)
 
         return input, target
 

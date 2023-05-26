@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from typing import List, Tuple
+from ..utils import tensor_window_slide
 
 
 class VolatilityLSTM(nn.Module):
@@ -40,14 +41,20 @@ class VolatilityLSTM(nn.Module):
         if n_dense_layers > 0:
             if isinstance(dense_hidden_sizes, int):
                 init_dense_layer = [nn.Linear(in_features=lstm_hidden_size, out_features=dense_hidden_sizes)]
-                self.dense_layers = init_dense_layer + [nn.Linear(in_features=dense_hidden_sizes, out_features=dense_hidden_sizes) for _ in range(n_dense_layers-1)]
+                self.dense_layers = init_dense_layer + [
+                    nn.Linear(in_features=dense_hidden_sizes, out_features=dense_hidden_sizes) for _ in
+                    range(n_dense_layers - 1)]
                 self.fc = nn.Linear(in_features=dense_hidden_sizes, out_features=1)
 
             elif isinstance(dense_hidden_sizes, list):
                 if len(dense_hidden_sizes) != n_dense_layers:
-                    raise Exception(f'Number of hidden sizes should match the number of layers\nGot {len(dense_hidden_sizes)} and {n_dense_layers}')
+                    raise IndexError(f'Number of hidden sizes should match the number of layers\n'
+                                     f'Got {len(dense_hidden_sizes)} and {n_dense_layers}')
+
                 dense_hidden_sizes = [lstm_hidden_size] + dense_hidden_sizes
-                self.dense_layers = [nn.Linear(in_features=dense_hidden_sizes[i], out_features=dense_hidden_sizes[i+1]) for i in range(n_dense_layers)]
+                self.dense_layers = [
+                    nn.Linear(in_features=dense_hidden_sizes[i], out_features=dense_hidden_sizes[i + 1]) for i in
+                    range(n_dense_layers)]
                 self.fc = nn.Linear(in_features=dense_hidden_sizes[-1], out_features=1)
 
         else:
@@ -77,7 +84,8 @@ class VolatilityLSTM(nn.Module):
         :param X: tensor of shape (batch size, sequence_length, window_size)
         :param n_days: number of days to predict in the future
         :param keep_init: if True, appends its prediction for the given days to the output
-        :return: tensor of shape (batch size, n_days) if keep_init == False, otherwise (batch size, sequence length + n_days)
+        :return: tensor of shape (batch size, n_days) if keep_init == False.
+                 otherwise (batch size, sequence length + n_days)
         """
         n_preds = n_days + X.size(1) if keep_init else n_days
 
@@ -87,24 +95,14 @@ class VolatilityLSTM(nn.Module):
         new_preds = torch.zeros(X.size(0), n_preds)
         new_preds[: 0] = final_pred
 
-        next_input = self.tensor_window_slide(X[:, -1, :], final_pred.unsqueeze(1))
+        next_input = tensor_window_slide(X[:, -1, :], final_pred.unsqueeze(1))  # slides the window one day to the right
 
         for i in range(1, n_days):
             next_pred, hiddens = self.forward(X)
             new_preds[: i] = next_pred
-            next_input = self.tensor_window_slide(next_input, next_pred)
+            next_input = tensor_window_slide(next_input, next_pred)
 
         if keep_init:
             return torch.cat((init_preds, new_preds), dim=1)
         else:
             return new_preds
-
-
-    def tensor_window_slide(self, old_tensor: torch.Tensor, new_tensor: torch.Tensor) -> torch.Tensor:
-        """
-        slides the sliding window one unit over for a batched tensor
-        :param old_tensor: the old sliding window of shape (batch_size, 1, window_size)
-        :param new_tensor: the new tensor to add of shape (batch_size, 1, 1)
-        :return: tensor of shape (batch_size, 1, window_size)
-        """
-        return torch.cat((old_tensor[:, :, 1:], new_tensor), dim=2)
