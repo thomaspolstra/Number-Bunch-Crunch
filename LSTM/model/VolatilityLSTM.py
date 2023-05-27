@@ -87,8 +87,6 @@ class VolatilityLSTM(nn.Module):
         :return: tensor of shape (batch size, n_days) if keep_init == False.
                  otherwise (batch size, sequence length + n_days)
         """
-        n_preds = n_days + X.size(1) if keep_init else n_days
-
         init_preds, hiddens = self.forward(X)
         final_pred = init_preds[:, -1]
 

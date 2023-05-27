@@ -15,7 +15,8 @@ class TickerDataset(Dataset):
         """returns input and target tensors for one ticker symbol"""
         daily_close = self.ticker_data['Adj Close']
 
-        log_returns = torch.tensor(daily_close[self.tickers[index]], dtype=torch.float).log().diff()
+        log_returns = torch.tensor(daily_close[self.tickers[index]], dtype=torch.float).log10().diff()
+        log_returns = (log_returns - 1.5966) / 0.5472
         input = log_returns.unfold(0, self.window_size, 1)  # turns 1d tensor into 2d of shape
                                                             # (n_days - window_size, window_size)
         target = log_returns[self.window_size:]  # 1d tensor of shape (n_days - window_size)

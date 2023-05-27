@@ -1,7 +1,7 @@
 {
-  "name": "default_experiment",
+  "name": "colab_experiment",
   "dataset": {
-    "n_tickers": 20,
+    "n_tickers": 898,
     "start_date": "2013-01-01",
     "end_date": "2022-12-31"
   },

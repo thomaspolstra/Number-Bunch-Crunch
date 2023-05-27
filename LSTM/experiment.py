@@ -48,7 +48,7 @@ class Experiment:
         # initialize model and optimizers
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.model = VolatilityLSTM(**self.config_data['model'])
-        self.criterion = nn.MSELoss(reduction='sum')
+        self.criterion = nn.MSELoss(reduction='mean')
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config_data['experiment']['learning_rate'])
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, self.n_epochs)
 
@@ -165,6 +165,8 @@ class Experiment:
 
                 if i % 1 == 1:
                     self.print_stats('test', -1, i, test_loss_forced)
+                if i == self.n_test_batches - 1:
+                    self.plot_predictions(targets, preds_forced, preds_infer)
 
         result_str = f"Test Performance:\t" \
                      f"Teacher Forced Loss: {test_loss_forced / self.n_test_batches}\t" \
@@ -216,7 +218,22 @@ class Experiment:
         plt.title(self.name + ' Stats Plot')
         plt.savefig(os.path.join(self.save_dir, 'stat_plot.png'))
 
+    def plot_predictions(self, targets: torch.Tensor, preds_force: torch.Tensor, preds_infer: torch.Tensor):
+        days = np.arange(targets.size(1))
+        target_arr = (targets[0, :].cpu().detach().numpy() * 0.5472) + 1.5966
+        pred_force_arr = (preds_force[0, :].cpu().detach().numpy() * 0.5472) + 1.5966
+        pred_infer_arr = (preds_infer[0, :].cpu().detach().numpy() * 0.5472) + 1.5966
+
+        fig, ax = plt.subplots(3, 1)
+        ax[0].plot(days, target_arr)
+        ax[0].set_title('Actual Log Returns')
+        ax[1].plot(days, pred_force_arr[:-1])
+        ax[1].set_title('Teacher Forcing Log Returns')
+        ax[2].plot(days, pred_infer_arr)
+        ax[2].set_title('Unforced Log Returns')
+        plt.savefig(os.path.join(self.save_dir, 'prediction_plot.png'))
+
     def print_stats(self, stat_type: str, epoch: int, iteration: int, loss: float):
         print(f'{stat_type.capitalize()}:\t'
               f'[{epoch}/{self.n_epochs}][{iteration}/{getattr(self, f"n_{stat_type}_batches")}]\t'
-              f'Average Loss: {loss / (iteration + 1):.4f}')
+              f'Average Loss: {loss / (iteration + 1):.4e}')
