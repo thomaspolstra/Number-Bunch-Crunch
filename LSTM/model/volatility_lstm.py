@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from typing import List, Tuple
-from LSTM.model.tensor_funcs import tensor_window_slide
+from model.tensor_funcs import tensor_window_slide
 
 
 class VolatilityLSTM(nn.Module):
@@ -90,7 +90,7 @@ class VolatilityLSTM(nn.Module):
         init_preds, hiddens = self.forward(X)
         final_pred = init_preds[:, -1]
 
-        new_preds = torch.zeros(X.size(0), n_days)
+        new_preds = torch.zeros(X.size(0), n_days).to(device=X.device)
         new_preds[:, 0] = final_pred
 
         # slides the window one day to the right
@@ -105,3 +105,7 @@ class VolatilityLSTM(nn.Module):
             return torch.cat((init_preds, new_preds), dim=1)
         else:
             return new_preds
+
+    def dense_cuda(self):
+        for layer in self.dense_layers:
+            layer = layer.to(device='cuda')

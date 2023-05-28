@@ -1,13 +1,13 @@
 {
   "name": "default_experiment",
   "dataset": {
-    "n_tickers": 20,
+    "n_tickers": 898,
     "start_date": "2013-01-01",
     "end_date": "2022-12-31"
   },
   "loaders": {
     "window_size": 10,
-    "batch_size": 4,
+    "batch_size": 8,
     "shuffle": true,
     "n_workers": 2,
     "val_ratio": 0.15,
@@ -15,14 +15,14 @@
   },
   "experiment": {
     "n_epochs": 200,
-    "learning_rate": 5e-4,
-    "patience": 2
+    "learning_rate": 5e-3,
+    "patience": 20
   },
   "model": {
     "window_size": 10,
     "lstm_hidden_size": 1024,
     "n_lstm_layers": 2,
-    "dense_hidden_sizes": [1024, 256, 128],
+    "dense_hidden_sizes": [128, 128, 32],
     "n_dense_layers": 3,
     "dropout": 0.0,
     "dropout_lstm": false

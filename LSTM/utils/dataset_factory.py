@@ -1,22 +1,25 @@
 from torch.utils.data import Dataset, DataLoader
 import torch
 from pandas import DataFrame
-from typing import Tuple, Any
+from typing import Tuple
+import numpy as np
 
 
 class TickerDataset(Dataset):
-    def __init__(self, ticker_df: DataFrame, window_size: int):
+    def __init__(self, ticker_df: DataFrame, window_size: int, mean: float, std: float):
         super().__init__()
         self.tickers = ticker_df['Adj Close'].columns.values
         self.ticker_data = ticker_df
         self.window_size = window_size
+        self.mean = mean
+        self.std = std
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """returns input and target tensors for one ticker symbol"""
         daily_close = self.ticker_data['Adj Close']
 
         log_returns = torch.tensor(daily_close[self.tickers[index]], dtype=torch.float).log10().diff()
-        log_returns = (log_returns - 1.5966) / 0.5472
+        log_returns = (log_returns - self.mean) / self.std
         input = log_returns.unfold(0, self.window_size, 1)  # turns 1d tensor into 2d of shape
                                                             # (n_days - window_size, window_size)
         target = log_returns[self.window_size:]  # 1d tensor of shape (n_days - window_size)
@@ -33,7 +36,7 @@ def create_dataloaders(ticker_df: DataFrame,
                        shuffle: bool,
                        n_workers: int,
                        val_ratio: float,
-                       test_ratio: float) -> Tuple[DataLoader, DataLoader, DataLoader]:
+                       test_ratio: float) -> Tuple[Tuple[DataLoader, DataLoader, DataLoader], float, float]:
     """
     :param ticker_df: DataFrame for tickers
     :param window_size: number of days in rolling window
@@ -45,16 +48,17 @@ def create_dataloaders(ticker_df: DataFrame,
     :return: three data loaders (train, val, test)
     """
     dataframes = train_val_test_split(ticker_df, val_ratio, test_ratio)
+    mean, std = find_mean_std(dataframes[0])
     shuffles = (shuffle, False, False)
     loaders = []
 
     for df, should_shuffle in zip(dataframes, shuffles):
-        loaders.append(DataLoader(TickerDataset(df, window_size),
+        loaders.append(DataLoader(TickerDataset(df, window_size, mean, std),
                                   batch_size=batch_size,
-                                  shuffle=should_shuffle,
+                                  shuffle=True,
                                   num_workers=n_workers))
 
-    return tuple(loaders)
+    return tuple(loaders), mean, std
 
 
 def train_val_test_split(data: DataFrame,
@@ -69,3 +73,17 @@ def train_val_test_split(data: DataFrame,
     test_data = data[-n_days_test:].copy()
 
     return train_data, val_data, test_data
+
+
+def find_mean_std(data: DataFrame) -> Tuple[float, float]:
+    log_closes = data['Adj Close'].apply(lambda x: np.log10(x)).diff().dropna()
+    mean = log_closes.mean().mean()
+    std = log_closes.values.std(ddof=1)
+    return mean, std
+
+
+def find_min_max(data: DataFrame) -> Tuple[float, float]:
+    log_closes = data['Adj Close'].apply(lambda x: np.log10(x)).diff().dropna()
+    min = log_closes.min().min()
+    max = log_closes.max().max()
+    return min, max
