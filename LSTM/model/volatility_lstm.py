@@ -64,19 +64,19 @@ class VolatilityLSTM(nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(p=dropout)
 
-    def forward(self, X: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, X: torch.Tensor, hiddens=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes forward pass
         :param X: tensor of shape (batch size, sequence length, window_size)
         :return: tensor of shape (batch_size, sequence length)
         """
-        y, hiddens = self.lstm(X)
+        y, hiddens = self.lstm(X, hiddens)
         for layer in self.dense_layers:
             y = self.relu(self.dropout(layer(y)))
 
         y = self.fc(y)
 
-        return y.squeeze(), hiddens
+        return y.squeeze(-1), hiddens
 
     def predict(self, X: torch.Tensor, n_days: int, keep_init: bool) -> torch.Tensor:
         """
@@ -97,9 +97,9 @@ class VolatilityLSTM(nn.Module):
         next_input = tensor_window_slide(X[:, -1, :].view(X.size(0), 1, X.size(-1)), final_pred)
 
         for i in range(1, n_days):
-            next_pred, hiddens = self.forward(next_input)
+            next_pred, hiddens = self.forward(next_input, hiddens)
             new_preds[:, i] = next_pred
-            next_input = tensor_window_slide(next_input, next_pred)
+            next_input = tensor_window_slide(next_input, next_pred.squeeze(1))
 
         if keep_init:
             return torch.cat((init_preds, new_preds), dim=1)
