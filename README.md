@@ -12,11 +12,11 @@ In this README, we explain the data gathering process, the preprocessing, and th
 
 
 ## Table of Contents
-- [Data Gathering](#Data Gathering)
+- [Data Gathering](#Data-Gathering)
 - [Preprocessing](#Preprocessing)
 - [Models](#Models)
   - [GARCH](#GARCH)
-  - [Random Forest](#Random Forest)
+  - [Random Forest](#Random-Forest)
   - [LSTM](#LSTM)
 
 ## Data Gathering
