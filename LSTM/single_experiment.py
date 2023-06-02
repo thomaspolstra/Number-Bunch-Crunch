@@ -14,7 +14,7 @@ def train_model(model: VolatilityLSTM,
                 y_val: torch.Tensor,
                 max_iter: int,
                 patience: int) -> Tuple[VolatilityLSTM, float, int]:
-    optimizer = torch.optim.Adam(model.parameters(), lr=5e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
     criterion = torch.nn.MSELoss()
 
     best_val_loss = np.inf
