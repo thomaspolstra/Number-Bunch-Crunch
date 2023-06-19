@@ -21,7 +21,8 @@ class VolatilityRandomForest:
         :param y: MatrixLike
         """
         return self.rf.fit(X,y)
-        
+    
+
     def predict(self, X: np.ndarray | pd.core.series.Series, 
                 n_windows: int = 1) -> any:
         """
